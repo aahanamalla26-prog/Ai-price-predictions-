@@ -1,0 +1,72 @@
+<div class="dashboard">
+  <header class="dashboard-header">
+    <h1>PricePulse</h1>
+    <span class="conn-indicator" [class.conn-open]="connectionStatus() === 'open'">
+      {{ connectionStatus() === 'open' ? 'Live' : connectionStatus() }}
+    </span>
+  </header>
+
+  <form class="check-form" (ngSubmit)="submitCheck()">
+    <input
+      type="text"
+      placeholder="https://example.com/product/123"
+      [formControl]="urlControl"
+    />
+    <button type="submit" [disabled]="isSubmitting() || urlControl.invalid">
+      {{ isSubmitting() ? 'Queuing…' : 'Check Price' }}
+    </button>
+  </form>
+  @if (submitError()) {
+    <p class="error-text">{{ submitError() }}</p>
+  }
+
+  <table class="price-table">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Price</th>
+        <th>Status</th>
+        <th>Promo</th>
+        <th>Updated</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track trackByRequestId($index, row)) {
+        <tr>
+          <td class="url-cell" [title]="row.productUrl">{{ row.productTitle ?? row.productUrl }}</td>
+          <td>
+            @if (row.priceAmount !== null) {
+              {{ row.priceAmount | number: '1.2-2' }} {{ row.currency }}
+            } @else {
+              —
+            }
+          </td>
+          <td><span [class]="statusBadgeClass(row.status)">{{ row.status }}</span></td>
+          <td class="promo-cell">{{ row.promoText ?? '—' }}</td>
+          <td>{{ row.updatedAt | date: 'short' }}</td>
+          <td><button type="button" (click)="viewHistory(row)">History</button></td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="6" class="empty-row">No price checks yet — paste a product URL above.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  @if (historyLoading()) {
+    <p>Loading history…</p>
+  } @else if (selectedHistory().length) {
+    <section class="history-panel">
+      <h2>Price history</h2>
+      <ul>
+        @for (record of selectedHistory(); track record.id) {
+          <li>
+            {{ record.scraped_at | date: 'short' }} — {{ record.price_amount | number: '1.2-2' }} {{ record.currency }}
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</div>
