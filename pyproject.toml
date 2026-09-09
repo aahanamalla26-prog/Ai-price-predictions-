@@ -1,0 +1,6 @@
+[project]
+name = "pricepulse"
+version = "0.1.0"
+dependencies = ["fastapi", "uvicorn", "sqlalchemy", "psycopg2-binary", "pydantic", "pydantic-settings", "email-validator"]
+[tool.vercel.entrypoint]
+file = "backend/main.py"
