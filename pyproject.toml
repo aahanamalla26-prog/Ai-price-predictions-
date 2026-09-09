@@ -10,3 +10,6 @@ dependencies = [
     "pydantic-settings",
     "email-validator"
 ]
+
+[tool.vercel.entrypoint]
+file = "api/main.py"
