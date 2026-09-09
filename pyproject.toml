@@ -11,5 +11,8 @@ dependencies = [
     "email-validator"
 ]
 
+[tool.vercel.python]
+maxLambdaSize = "15mb"
+
 [tool.vercel.entrypoint]
 file = "api/main.py"
