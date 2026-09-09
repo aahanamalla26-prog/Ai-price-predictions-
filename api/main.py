@@ -5,12 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-import models
-import schemas
-from config import settings
-from database import Base, engine, get_db
-from prediction import predict_price
+from . import models
+from . import schemas
+from .config import settings
+from .database import Base, engine, get_db
+from .prediction import predict_price
 
+# Creates tables if they don't exist yet. Fine for early-stage dev;
+# switch to Alembic migrations once the schema stabilizes.
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="PricePulse API")
@@ -33,6 +35,8 @@ def read_root():
 def health_check():
     return {"status": "healthy"}
 
+
+# ---------- Products ----------
 
 @app.get("/products", response_model=schemas.ProductListOut)
 def list_products(
@@ -62,6 +66,8 @@ def create_product(payload: schemas.ProductCreate, db: Session = Depends(get_db)
     db.add(product)
     db.commit()
     db.refresh(product)
+
+    # Seed the first price-history point so predictions have something to work with.
     db.add(models.PriceHistory(product_id=product.id, price=product.current_price))
     db.commit()
     return product
@@ -74,6 +80,8 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
+
+# ---------- Price history ----------
 
 @app.get("/products/{product_id}/history", response_model=schemas.PriceHistoryOut)
 def get_price_history(
@@ -96,6 +104,7 @@ def get_price_history(
 
 @app.post("/products/{product_id}/history", response_model=schemas.PricePoint, status_code=201)
 def add_price_point(product_id: int, price: float, db: Session = Depends(get_db)):
+    """Record a new price observation (called by your scraper/worker)."""
     product = db.get(models.Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -108,6 +117,8 @@ def add_price_point(product_id: int, price: float, db: Session = Depends(get_db)
     db.refresh(point)
     return point
 
+
+# ---------- Prediction ----------
 
 @app.get("/products/{product_id}/predict", response_model=schemas.PredictionOut)
 def predict(
@@ -139,6 +150,8 @@ def predict(
         basis_points=result.basis_points,
     )
 
+
+# ---------- Tracking / alerts ----------
 
 @app.post("/products/{product_id}/track", response_model=schemas.TrackOut, status_code=201)
 def track_product(product_id: int, payload: schemas.TrackRequest, db: Session = Depends(get_db)):
