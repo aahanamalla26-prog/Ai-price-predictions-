@@ -5,11 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from .nl_search import parse_search_query
+from .trend_explainer import explain_trend
+
 from . import models
 from . import schemas
 from .config import settings
 from .database import Base, engine, get_db
 from .prediction import predict_price
+
 
 # Creates tables if they don't exist yet. Fine for early-stage dev;
 # switch to Alembic migrations once the schema stabilizes.
@@ -178,3 +182,53 @@ def list_trackers(product_id: int, db: Session = Depends(get_db)):
         .order_by(models.TrackedItem.created_at.desc())
         .all()
     )
+
+
+# ---------- AI Features (Natural Language Search & Trend Explainer) ----------
+
+@app.get("/products/search/nl")
+def search_products_nl(query: str, db: Session = Depends(get_db)):
+    """Feature 1: Natural language product search using Claude."""
+    return parse_search_query(query, db)
+
+
+@app.get("/products/{product_id}/predict/explain")
+def explain_product_prediction(
+    product_id: int,
+    days_ahead: int = Query(7, ge=1, le=90),
+    db: Session = Depends(get_db),
+):
+    """Feature 2: Plain-English explanation of your OLS regression model prediction."""
+    product = db.get(models.Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    history = (
+        db.query(models.PriceHistory.recorded_at, models.PriceHistory.price)
+        .filter(models.PriceHistory.product_id == product_id)
+        .all()
+    )
+    if not history:
+        raise HTTPException(status_code=422, detail="No price history to predict from yet")
+
+    # Run your actual OLS prediction math
+    result = predict_price([(h.recorded_at, h.price) for h in history], days_ahead=days_ahead)
+
+    # Construct the dictionary object that trend_explainer expects
+    prediction_data = {
+        "product_id": product_id,
+        "current_price": product.current_price,
+        "predicted_price": result.predicted_price,
+        "predicted_for_days": days_ahead,
+        "trend": result.trend,
+        "confidence": result.confidence,
+        "basis_points": result.basis_points,
+    }
+
+    # Ask Claude to explain the regression result in plain English
+    explanation = explain_trend(prediction_data)
+    
+    return {
+        "prediction": prediction_data,
+        "explanation": explanation
+    }

@@ -1,0 +1,12 @@
+# Environment variables
+.env
+api/.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# macOS junk
+.DS_Store
+*.DS_Store
+**/.DS_Store
