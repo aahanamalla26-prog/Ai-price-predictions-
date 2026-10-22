@@ -1,0 +1,12 @@
+# Everything the API and its tests need. Used by CI (the root requirements.txt
+# only lists the Kafka worker's packages).
+fastapi
+uvicorn
+sqlalchemy>=2
+psycopg2-binary
+pydantic>=2
+pydantic-settings
+email-validator
+anthropic
+httpx
+pytest
