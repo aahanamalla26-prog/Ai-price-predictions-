@@ -44,7 +44,6 @@ jobs:
       - name: API tests (Claude is mocked, no API key needed)
         env:
             DATABASE_URL: postgresql+psycopg2://test_user:test_password@localhost:5432/test_db
-        run: pytest -q
-
+        run: PYTHONPATH=. pytest -q
       - name: AI search evaluation harness self-check
         run: python -m evals.nl_search_eval --dry-run
